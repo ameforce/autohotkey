@@ -1,0 +1,941 @@
+#singleinstance Force
+;#########initial_variable###########
+
+global text03_1, text03_2, text03_3, text03_4, text03_5, text03_6, text03_7, text03_8, text03_9, text03_10, text03_11, text03_12, text03_13, text03_14, text03_15, text03_16, text03_17
+global text04_1, text04_2, text04_3, text04_4, text04_5, text04_6, text04_7, text04_8, text04_9, text04_10, text04_11, text04_12, text04_13, text04_14, text04_15, text04_16, text04_17
+global text05_1, text05_2, text05_3, text05_4, text05_5, text05_6, text05_7, text05_8, text05_9, text05_10, text05_11, text05_12, text05_13, text05_14, text05_15, text05_16, text05_17
+global text01, text02, text03, text04, text05, edit01, edit02, self_edit, auto_edit, self01, auto01, auto02, auto03, active01, active02, active03, now_page, max_page, button01, button02, button03, button04, button05, button06, button07, button08, result_Question, order, version := "0.1.0"
+global ID_value, AS_status, result_Answer, progress01
+;###############################
+
+filedelete, %a_scriptdir%\update_system.exe
+
+#include %a_scriptdir%\..\소스 모음\ENM_Login.ahk
+#include %a_scriptdir%\..\소스 모음\FTP.ahk
+#include %a_scriptdir%\..\소스 모음\Now_time.ahk
+#include %a_scriptdir%\..\소스 모음\Time_Calc.ahk
+
+;result_Question 양식
+;#Question01#@resource01@#Question02#@resource02@
+;##를 먼저 exmatch후 /enm/로 replace 후 /enm/@@를 exmatch후 추출한 뒤 replace로 제거 그리고 덮어씌움.
+
+Main(ID_value){
+	version := "0.1.1"
+	update_check()
+	if (ID_value == "AmeForce" || ID_value == "mikenel"){
+		tooltip
+		msgbox, 68, 알림, 회원님은 관리자 모드 접근 권한이 있습니다.`n관리자 모드로 접속하시겠습니까?
+		ifMsgbox, Yes
+		{
+			admin_mode(ID_value)
+			return
+		}
+	}
+	member_mode(ID_value)
+return
+}
+
+mainclose(){
+	gui, main:destroy
+	return
+}
+
+Question_check(){
+	gui, main:submit, nohide
+	if (now_page >= max_page)	;now page가 max 초과하려 할 때
+		guicontrol, main:disabled, button07
+	else
+		guicontrol, main:enabled, button07
+	
+	if (now_page <= 0){	;now page가 0보다 작아지려 할 때
+		guicontrol, main:disabled, button03
+		guicontrol, main:disabled, button04
+		guicontrol, main:disabled, edit01
+		guicontrol, main:disabled, button06
+	}else{
+		guicontrol, main:enabled, button03
+		guicontrol, main:enabled, button04
+		guicontrol, main:enabled, edit01
+		guicontrol, main:enabled, button06
+	}
+	
+	if (edit01 == ""){
+		guicontrol, main:disabled, button01
+		guicontrol, main:disabled, button02
+	}else{
+		Question%now_page% := edit01
+		guicontrol, main:enabled, button01
+		;guicontrol, main:enabled, button02		;아직 미구현
+	}
+	guicontrol, main:, text02, %now_page% / %max_page%
+	guicontrol, main:, active01, %now_page% / %max_page%
+}
+
+Question(ID_value){
+	gui, main:submit, nohide
+	stringreplace, result_Question, result_Question, #Question%now_page%#, /enm/
+	regexmatch(result_Question, "/enm/@enm@(.*?)@enm@", temp_filter)
+	stringreplace, result_Question, result_Question, %temp_filter%, #Question%now_page%#@enm@%edit01%@enm@
+	ifinstring, result_Question, #Question%now_page%#@enm@ENM Update Mode@enm@
+		update_mode(ID_value)
+return
+}
+
+AAD(){	;All Admin Desabled
+	guicontrol, main:disabled, button01
+	guicontrol, main:disabled, button02
+	guicontrol, main:disabled, button03
+	guicontrol, main:disabled, button04
+	guicontrol, main:disabled, button05
+	guicontrol, main:disabled, button06
+	guicontrol, main:disabled, button07
+return
+}
+
+Question_download(){
+	gui, main:font, cred
+	guicontrol, main:font, text01
+	guicontrol, main:, text01, 서버에 연결 중 입니다. [데이터 다운로드]
+	if (!Internet_Check()){
+		AAD()
+		errorMsg("인터넷 연결이 되어있지 않습니다")
+		order = #enm#Question_download#enm#
+		settimer, Refresh_order, 1000, on
+		return
+	}else{
+		settimer, Refresh_order, off
+	}
+	result_Question := ""
+	resource := URL_Resource("http://www.enmsoftware.co.kr/gate/gate_assignment.enm", a_scriptdir)
+	stringreplace, resource, resource, `n, @enm_enter@, All
+	count := 0
+	loop{
+		;msgbox, , , result_Question : %result_Question%`nresource : %resource%`ntemp_filter : %temp_filter%
+		ifnotinstring, resource, #Question%a_index%#
+			ifnotinstring, resource, /enm/
+				break
+		stringreplace, resource, resource, #Question%a_index%#, /enm/
+		regexmatch(resource, "/enm/@enm@(.*?)@enm@", temp_filter)
+		stringreplace, resource, resource, %temp_filter%
+		result_Question = %result_Question%#Question%a_index%#@enm@%temp_filter1%@enm@
+		count++
+	}
+	stringreplace, result_Question, result_Question, @enm_enter@, `n, All
+	stringreplace, temp_filter1, temp_filter1, @enm_enter@, `n, All
+	now_page := count
+	max_page := count
+	guicontrol, main:, edit01, %temp_filter1%
+	;tooltip, result_Question : %result_Question%`ntemp_filter : %temp_filter%
+	Question_check()
+	gui, main:font, cblue
+	guicontrol, main:font, text01
+	guicontrol, main:, text01, 데이터 다운로드 성공
+	sleep, 500
+	gui, main:font, cyellow
+	guicontrol, main:font, text01
+	guicontrol, main:, text01, 문제를 입력하세요
+return
+}
+
+errorMsg(string){
+	gui, main:font, cred
+	guicontrol, main:font, text01
+	guicontrol, main:, text01, %string%
+	fileremovedir, %a_scriptdir%\upload_data, 1
+	loop 5{
+		soundbeep, 1024, 200
+		soundbeep, 2048, 400
+	}
+return
+}
+
+update_UI(ID_value){		;관리자 업데이트 모드
+	gui, main:color, black
+	gui, main:font, cyellow w600
+	gui, main:add, text, w300 +center, 환영합니다 %ID_value%님
+	gui, main:add, text, w300 +center, 업데이트 모드
+	gui, main:add, text, w300 vtext01 +center, no_data
+	gui, main:add, text, w300
+	gui, main:font, cblack
+	gui, main:add, edit, w300 vedit01 +center, 
+	gui, main:add, button, w300 vbutton01 gUpdate_upload, 업데이트
+	gui, main:show, autosize, Gate Assignment Update Mode
+	return
+}
+
+updator_UI(){
+	gui, main:-caption
+	gui, main:color, black
+	gui, main:font, cyellow w600
+	gui, main:add, text, w300 vtext01 +center, 업데이터 모드
+	gui, main:add, progress, w300 vprogress01 red, 0
+	gui, main:add, text, w300 vtext02 +right, no_data
+	gui, main:show, autosize, Gate Assignment Updator Mode
+	return
+}
+
+update_check(){
+	gui, main:font, cred
+	guicontrol, main:font, text01
+	guicontrol, main:, text01, 서버에 연결 중 입니다. [업데이트 체크]
+	tooltip, 서버에 연결 중 입니다. [업데이트 체크]
+	if (!Internet_Check()){
+		errorMsg("인터넷이 연결되어 있지 않습니다.")
+		return
+	}
+	resource := URL_Resource("http://www.enmsoftware.co.kr/gate/gate_assignment_version.enm", a_scriptdir)
+	tooltip
+	if (resource == ""){
+		guicontrol, main:, text01, 버전을 확인할 수 없습니다
+	}else{
+		stringreplace, temp_version, version, ., , All
+		stringreplace, temp_resource, resource, ., , All
+		if (temp_version < temp_resource){
+			tooltip, version : %version%`nresource : %resource%
+			mainclose()
+			msgbox, 68, 알림, 새로운 버전이 확인되었습니다.`n업데이트 하시겠습니까?
+			ifMsgbox No
+			{
+				msgbox, 48, 경고, 업데이트를 진행하지 않아 시스템이 종료됩니다.
+				ExitApp
+			}
+			updator_UI()
+			loop{
+				guicontrol, main:, text01, 업데이트 서버에 접속 중...
+				urldownloadtofile, http://www.enmsoftware.co.kr/gate/update_system.exe, %a_scriptdir%\update_system.exe
+				ifexist, %a_scriptdir%\update_system.exe
+					break
+				if (a_index == 5){
+					guicontrol, main:, text01, 업데이트 실패
+					msgbox, 16, 에러, 서버에 정상적으로 연결할 수 없습니다.`n인터넷 연결을 확인하거나 관리자에게 문의하세요.
+					exitapp
+				}
+				guicontrol, main:, text01, 실패. 재접속 중...
+				sleep, 1000
+			}
+			file_create(a_scriptname, "off", "deli")
+			run, %a_scriptdir%\update_system.exe
+			exitapp
+		}
+		gui, main:font, cyellow
+		guicontrol, main:font, text01
+		guicontrol, main:, text01, 현재 버전 %resource% ver
+		guicontrol, main:, edit01, %resource%
+	}
+	return
+}
+
+update_mode(ID_value){
+	settimer, Member_status, off
+	gui, main:destroy
+	update_UI(ID_value)
+	update_check()
+	return
+}
+
+Update_upload(upload_route){
+	gui, main:font, cred
+	guicontrol, main:font, text01
+	guicontrol, main:, text01, 서버에 연결 중 입니다. [업데이트 업로드]
+	if (!Internet_Check()){
+		AAD()
+		errorMsg("인터넷 연결이 되어있지 않습니다")
+		order = #enm#Update_upload@enm@%upload_route%@enm@#enm#
+		settimer, Refresh_order, 1000, on
+		return
+	}else{
+		settimer, Refresh_order, off
+	}
+	INetOpen := INetOpen()
+	FTP_data := INetConnect()
+	if (FTP_data){
+		filecopy, %a_scriptdir%\%a_scriptname%, %a_scriptdir%\new_%a_scriptname%, 1
+		sleep, 1500
+		exe_route = %a_scriptdir%\new_%a_scriptName%
+		if(FtpPutFile(FTP_data, exe_route, "gate/Gate_Assignment_System.exe"))
+		{
+			if(FtpPutFile(FTP_data, upload_route, "gate/gate_assignment_version.enm"))
+			{
+				gui, main:font, cblue
+				guicontrol, main:font, text01
+				guicontrol, main:, text01, 데이터 업로드 성공
+			}else{
+				errorMsg("버전 업로드 실패")
+				return
+			}
+		}else{
+			errorMsg("뉴버전 프로그램 업로드 실패")
+			return
+		}
+	}
+	fileremovedir, %a_scriptdir%\upload_data, 1
+	filedelete, %exe_route%
+	sleep, 500
+	update_check()
+return
+}
+
+Question_upload(upload_route){
+	gui, main:font, cred
+	guicontrol, main:font, text01
+	guicontrol, main:, text01, 서버에 연결 중 입니다. [데이터 업로드]
+	if (!Internet_Check()){
+		AAD()
+		errorMsg("인터넷 연결이 되어있지 않습니다")
+		fileremovedir, %a_scriptdir%\upload_data, 1
+		order = #enm#Question_upload@enm@%upload_route%@enm@#enm#
+		settimer, Refresh_order, 1000, on
+		return
+	}else{
+		settimer, Refresh_order, off
+	}
+	INetOpen := INetOpen()
+	FTP_data := INetConnect()
+	if (FTP_data){
+		if(FtpPutFile(FTP_data, upload_route, "gate/gate_assignment.enm"))
+		{
+			gui, main:font, cblue
+			guicontrol, main:font, text01
+			guicontrol, main:, text01, 데이터 업로드 성공
+		}else{
+			errorMsg("데이터 업로드 실패")
+		}
+	}
+	fileremovedir, %a_scriptdir%\upload_data, 1
+	Question_download()
+	sleep, 500
+	gui, main:font, cyellow
+	guicontrol, main:font, text01
+	guicontrol, main:, text01, 문제를 입력하세요
+return
+}
+
+file_create(resource, rand_status, file_name = ""){
+	loop{
+		ifnotexist, %a_scriptdir%\upload_data
+			filecreatedir, %a_scriptdir%\upload_data
+		else
+			break
+	}
+	
+	if (rand_status == "on"){
+		random, rand_data, 0, 50000000
+		file_name := rand_data
+	}
+	loop{
+		ifnotexist, %a_scriptdir%\upload_data\%file_name%.enm
+		{
+			filedelete, %a_scriptdir%\upload_data\%file_name%.enm
+			fileappend, %resource%, %a_scriptdir%\upload_data\%file_name%.enm
+		}else
+			break
+	}
+		
+
+temp_data = %a_scriptdir%\upload_data\%file_name%.enm
+return %temp_data%
+}
+
+resource_extraction(){		;현재 UI에서 입력된 데이터 추출
+	return result_Question
+}
+
+NPE(){	;now page extraction
+	temp_data := result_Question
+	stringreplace, temp_data, temp_data, #Question%now_page%#, /enm/
+	stringreplace, temp_data, temp_data, `n, @enm_enter@, All
+	regexmatch(temp_data, "/enm/@enm@(.*?)@enm@", temp_filter)
+	stringreplace, temp_filter1, temp_filter1, @enm_enter@, `n, All
+return %temp_filter1%
+}
+
+NAE(){	;now Answer extraction
+	temp_data := result_Answer
+	stringreplace, temp_data, temp_data, #Answer%now_page%#, /enm/
+	stringreplace, temp_data, temp_data, `n, @enm_enter@, All
+	regexmatch(temp_data, "/enm/@enm@(.*?)@enm@", temp_filter)
+	stringreplace, temp_filter1, temp_filter1, @enm_enter@, `n, All
+return %temp_filter1%
+}
+
+Admin_left(){
+	if (0 > now_page - 1){
+		errorMsg("최소 페이지 수를 넘어섭니다")
+		return
+	}
+	now_page--
+	resource := NPE()
+	guicontrol, main:, edit01, %resource%
+	Question_check()
+	return
+}
+
+Admin_right(){
+	if (max_page < now_page + 1){
+		errorMsg("최대 페이지 수를 넘어섭니다")
+		return
+	}
+	now_page++
+	resource := NPE()
+	guicontrol, main:, edit01, %resource%
+	Question_check()
+	return
+}
+
+Adelete(){
+	stringreplace, result_Question, result_Question, #Question%now_page%#, /enm/
+	regexmatch(result_Question, "/enm/@enm@(.*?)@enm@", temp_filter)
+	stringreplace, result_Question, result_Question, %temp_filter%
+	loop{
+		temp_calc01 := now_page + a_index
+		temp_calc02 := temp_calc01 - 1
+		ifnotinstring, result_Question, #Question%temp_calc01%#
+			break
+		stringreplace, result_Question, result_Question, #Question%temp_calc01%#, #Question%temp_calc02%#
+	}
+	
+	
+	if (now_page > --max_page){
+		now_page := max_page
+	}
+	resource := NPE()
+	guicontrol, main:, edit01, %resource%
+	Question_check()
+return
+}
+
+Alldelete(){
+	msgbox, 52, 경고, 데이터를 전부 지우겠습니까?`n서버에는 적용되지 않습니다.
+	ifMsgbox, Yes
+	{
+		result_Question := ""
+		max_page := 0
+		now_page := 0
+		resource := NPE()
+		guicontrol, main:, edit01, %resource%
+		Question_check()
+	}
+return
+}
+
+create_page(){
+	now_page++
+	max_page++
+	result_Question = %result_Question%#Question%now_page%#@enm@@enm@
+	guicontrol, main:, edit01, %blank%
+	guicontrol, main:Focus, edit01
+	Question_check()
+return
+}
+
+Member_status(){
+	FileEncoding, 
+	guicontrol, main:, text01, 멤버 데이터 다운로드 중...
+	member_resource := URL_Resource("http://www.enmsoftware.co.kr/gate/member_list.enm")
+
+	guicontrol, main:, text01, 현재 시간 동기화 중...
+	time_resource := Now_time()
+	
+	loop{
+		regexmatch(member_resource, "@enm@(.*?)@enm@", temp_filter)
+		if (temp_filter == "")
+			break
+		stringreplace, member_resource, member_resource, %temp_filter%
+		temp_url = http://www.enmsoftware.co.kr/gate/%temp_filter1%_time_data.enm
+		member_sec := Sec_exchange(URL_Resource(temp_url))
+		
+		time_text := Time_Calc(member_sec)
+		stringreplace, time_text, time_text, 간
+		
+		guicontrol, main:, text03_%a_index%, %temp_filter1%
+		guicontrol, main:, text04_%a_index%, %time_text%
+		
+		if (Sec_exchange(time_resource) - member_sec > 60){
+			gui, main:font, cred
+			guicontrol, main:font, text05_%a_index%
+		}else{
+			gui, main:font, cblue
+			guicontrol, main:font, text05_%a_index%
+		}
+	}
+	guicontrol, main:, text01, 문제를 입력하세요
+	return
+}
+
+admin_mode(ID_value){
+	tooltip, Admin 모드 접속 중...
+	gui, main:color, black
+	gui, main:font, cyellow w600
+	gui, main:add, text, w500 +center, 환영합니다 %ID_value%님
+	gui, main:add, text, w500 +center, 관리자 모드
+	gui, main:add, text, x10 y70 w500 vtext01 +center, 문제를 입력하세요
+	gui, main:font, cblack
+	gui, main:add, edit, x10 y90 w500 h200 vedit01 gQuestion, 
+	gui, main:add, button, x10 y325 w100 h25 vbutton01 gnew_write, 덮어쓰기
+	gui, main:add, button, x410 y325 w100 h25 vbutton02 gappend_write disabled, 이어쓰기
+	gui, main:add, button, x10 y355 w100 h25 vbutton03 gAdelete, 1개삭제
+	gui, main:add, button, x410 y355 w100 h25 vbutton04 gAlldelete, 전부삭제
+	gui, main:add, button, x215 y325 w100 h25 vbutton05 gcreate_page, 페이지 생성
+	gui, main:add, button, x10 y295 w100 h25 vbutton06 gAdmin_left, ◀
+	gui, main:add, button, x410 y295 w100 h25 vbutton07 gAdmin_right, ▶
+	gui, main:add, button, x215 y355 w100 h24 vbutton08 gRefresh, 새로고침
+	gui, main:font, cyellow
+	gui, main:add, text, x215 y300 w100 vtext02 +center, no_data
+	
+	gui, main:add, text, x515 y10 w300 +center, 멤버 상태
+	text03_X := 535
+	text04_X := 685
+	text05_X := 515
+	default_Y := 30
+	loop 17{
+		gui, main:add, text, x515 y%default_Y% w20 vtext05_%a_index% +center, ●
+		gui, main:add, text, x535 y%default_Y% w150 vtext03_%a_index% +left, 
+		gui, main:add, text, x685 y%default_Y% w150 vtext04_%a_index% +right, 
+		default_Y += 20
+	}
+	
+
+	
+	gui, main:show, autosize, Gate Assignment Admin Mode
+	
+	tooltip
+	Question_download()
+	Member_status()
+	settimer, Member_status, 60000
+return
+}
+
+Refresh_order(){
+	temp_data := order
+	loop{
+		ifnotinstring, temp_data, #enm#
+			break
+		regexmatch(temp_data, "#enm#(.*?)#enm#", temp_filter)
+		ifinstring, temp_filter1, @enm@
+		{
+			regexmatch(temp_filter1, "@enm@(.*?)@enm@", 2temp_filter)
+			stringreplace, temp_filter1, temp_filter1, %2temp_filter%
+			%temp_filter1%(2temp_filter1)
+		}else{
+			%temp_filter1%()
+		}
+		stringreplace, temp_data, temp_data, %temp_filter%
+	}
+return
+}
+
+Question:
+	Question_check()
+	Question(ID_value)
+return
+
+new_write:
+	msgbox, 52, 경고, 데이터를 새로 덮어 씌웁니다.`n계속 하시겠습니까?
+	ifMsgbox, No
+		return
+	Question_upload(file_create(resource_extraction(), "on"))
+return
+
+append_write:		;미구현
+	resource := resource_extraction()
+return
+
+Adelete:
+	Adelete()
+return
+
+Alldelete:
+	Alldelete()
+return
+
+create_page:
+	create_page()
+return
+
+Refresh:
+	order := "#enm#Question_Download#enm#"
+	Refresh_order()
+return
+
+Admin_left:
+	Admin_left()
+return
+
+Admin_right:
+	Admin_right()
+return
+
+Refresh_order:
+	gui, main:font, cred
+	guicontrol, main:font, text01
+	guicontrol, main:, text01, 자동 재접속 시도 중...
+	Refresh_order()
+return
+
+Update_upload:
+	gui, main:submit, nohide
+	Update_upload(file_create(edit01, "on"))
+return
+
+Member_status:
+	Member_status()
+return
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+member_mode(ID_value){
+	tooltip, UI 구축 중...
+	gui, main:color, black
+	gui, main:font, cyellow w600
+	gui, main:add, text, w500 +center,  환영합니다 %ID_value%님
+	gui, main:add, text, w500 +center, 게이트 과제 시스템
+	gui, main:font, s7
+	gui, main:add, text, w500 h8 +right, %version% ver
+	gui, main:font, s9
+	gui, main:add, text, w500 vtext01 +center, no_data
+	gui, main:add, edit, w500 h200 vedit01 ReadOnly, no_data
+	
+	gui, main:add, button, x11 y300 w100 h25 vbutton06 gMember_left disabled, ◀
+	gui, main:add, button, x410 y300 w100 h25 vbutton07 gMember_right disabled, ▶
+	
+	gui, main:add, text, x210 y310 w100 vactive01 gactive01 +center, 1 / 1
+	gui, main:font, cblack
+	gui, main:add, edit, x235 y310 w50 vactive02 gactive02 +center Number, %now_page%
+	gui, main:add, button, x292 y313 w40 h15 vactive03 gactive03, 이동
+	
+	gui, main:font, cyellow
+	gui, main:add, text, x10 y350 w500 +center, 답안 작성
+	gui, main:add, radio, x10 y370 w80 gself_edit, 직접 작성
+	gui, main:add, radio, x435 y370 w80 gauto_edit checked, 파일 첨부
+	gui, main:add, text, x10 y390 w500 vauto01 +center, 경로를 입력하세요
+	gui, main:font, cblack
+	gui, main:add, edit, x10 y395 w500 h200 vself01 gAnswer01,
+	gui, main:add, edit, x10 y410 w448 vauto02 gAnswer02,
+	gui, main:add, Button, x460 y411 w55 h19 vauto03 gBrowse, Browse
+	
+	gui, main:add, Button, x205 y435 w100 h25 vbutton02 gSubmit, 제출
+	gui, main:show, autosize, Gate Assignment Member Mode
+	tooltip
+	active03()
+	auto_edit()
+	Question_Download()
+	Answer_download()
+	online()
+	settimer, online, 60000, on
+	return
+return
+}
+
+Browse(){
+	fileselectfile, temp_data, 3
+	if (temp_data != "")
+		guicontrol, main:, auto02, %temp_data%
+	return
+}
+
+online(){
+	FileEncoding,
+	guicontrol, main:, text01, 현재 시간 동기화 중...
+	time_resource := Now_time()
+	
+	guicontrol, main:, text01, 시간 데이터 정렬 중...
+	temp_data := time_resource
+	loop 3{
+		regexmatch(temp_data, "@(.*?)@", temp_filter)
+		stringreplace, temp_data, temp_data, %temp_filter%
+		time_data%a_index% := temp_filter1
+	}
+	
+	guicontrol, main:, text01, INet 서버에 접속 중...
+	INetOpen := INetOpen()
+	FTP_data := INetConnect()
+	if (FTP_data){
+		guicontrol, main:, text01, ENM 서버에 접속 중...
+		member_resource := URL_Resource("http://www.enmsoftware.co.kr/gate/member_list.enm")
+		ifnotinstring, member_resource, %ID_value%
+		{
+			guicontrol, main:, text01, 멤버 리스트 등록 중...
+			member_resource = %member_resource%@enm@%ID_value%@enm@
+			if(FtpPutFile(FTP_data, file_create(member_resource, "on"), "gate/member_list.enm"))
+			{
+				gui, main:font, cblue
+				guicontrol, main:font, text01
+				guicontrol, main:, text01, 데이터 업로드 성공
+			}else{
+				errorMsg("멤버 리스트 업로드 실패")
+				return
+			}
+		}
+	
+		guicontrol, main:, text01, 시간 데이터 갱신 중...
+		temp_route = gate/%ID_value%_time_data.enm
+		if(FtpPutFile(FTP_data, file_create(time_resource, "on"), temp_route))
+		{
+			gui, main:font, cblue
+			guicontrol, main:font, text01
+			guicontrol, main:, text01, 데이터 업로드 성공
+		}else{
+				errorMsg("시간 데이터 업로드 실패")
+				return
+		}
+	}
+	INetClose()
+	gui, main:font, cyellow
+	guicontrol, main:font, text01
+	guicontrol, main:, text01, 답안을 입력해주세요
+	return
+}
+
+active01(){
+	guicontrol, main:hide, active01
+	guicontrol, main:show, active02
+	guicontrol, main:show, active03
+	active02()
+	return
+}
+
+active02(){
+	gui, main:submit, nohide
+	if (active02 == "" || active02 > max_page)
+		guicontrol, main:disabled, active03
+	else
+		guicontrol, main:enabled, active03
+	return
+}
+
+active03(){
+	gui, main:submit, nohide
+	guicontrol, main:hide, active02
+	guicontrol, main:hide, active03
+	guicontrol, main:show, active01
+	if (active02 != ""){
+		guicontrol, main:, active02, %blank%
+		now_page := active02 + 1
+		Member_left()
+	}
+	return
+}
+
+self_edit(){
+	AS_status := "S"
+	guicontrol, main:hide, auto01
+	guicontrol, main:hide, auto02
+	guicontrol, main:hide, auto03
+	guicontrol, main:show, self01
+	guicontrol, main:movedraw, button02, y600
+	gui, main:show, autosize
+	Submit_check()
+	return
+}
+
+auto_edit(){
+	AS_status := "A"
+	guicontrol, main:hide, self01
+	guicontrol, main:show, auto01
+	guicontrol, main:show, auto02
+	guicontrol, main:show, auto03
+	guicontrol, main:movedraw, button02, y435
+	gui, main:show, autosize
+	Submit_check()
+	return
+}
+
+Member_left(){
+	Admin_left()
+	resource := NAE()
+	guicontrol, main:, self01, %resource%
+	Submit_check()
+	return
+}
+
+Member_right(){
+	Admin_right()
+	resource := NAE()
+	guicontrol, main:, self01, %resource%
+	Submit_check()
+	return
+}
+
+Submit_check(){
+	gui, main:submit, nohide
+	;msgbox, , , auto02 : [%auto02%]`nself01 : [%self01%]`n AS_status : %AS_status%
+	if ((auto02 == "" && AS_status == "A") || (self01 == "" && AS_status == "S")){
+		guicontrol, main:disabled, button02
+	}else{
+		guicontrol, main:enabled, button02
+	}
+	
+	return
+}
+
+Answer_download(){
+	FileEncoding, 
+	guicontrol, main:, text01, 답안 데이터 다운로드 중...
+	loop %max_page%{
+		temp_url = http://www.enmsoftware.co.kr/gate/%ID_value%_%a_index%_Answer.enm
+		temp_resource := URL_Resource(temp_url)
+		ifinstring, temp_resource, 404 Not Found
+			temp_resource := ""
+		ifnotinstring, result_Answer, #Answer%a_index%#
+			result_Answer = %result_Answer%#Answer%a_index%#@enm@@enm@`n
+		stringreplace, result_Answer, result_Answer, #Answer%a_index%#@enm@, /enm/
+		stringreplace, result_Answer, result_Answer, `n, @enm_enter@, All
+		regexmatch(result_Answer, "/enm/(.*?)@enm@", temp_filter)
+		stringreplace, result_Answer, result_Answer, %temp_filter%, #Answer%a_index%#@enm@%temp_resource%@enm@
+		stringreplace, result_Answer, result_Answer, @enm_enter@, `n, All
+	}
+	temp_resource := NAE()
+	guicontrol, main:, self01, %temp_resource%
+	gui, main:font, cyellow
+	guicontrol, main:font, text01
+	guicontrol, main:, text01, 답안을 입력해주세요
+	return
+}
+
+Submit(){
+	gui, main:submit, nohide
+	guicontrol, main:, text01, INet 서버에 접속 중...
+	INetOpen := INetOpen()
+	FTP_data := INetConnect()
+	if (FTP_data){
+		guicontrol, main:, text01, 파일 업로드 중...
+		temp_route = gate/%ID_value%_%now_page%_Answer.enm
+		if (AS_status == "A"){
+			if(FtpPutFile(FTP_data, auto02, temp_route)){
+				gui, main:font, cblue
+				guicontrol, main:font, text01
+				guicontrol, main:, text01, 데이터 업로드 성공
+			}else{
+				errorMsg("답안 파일 업로드 실패")
+				return
+			}
+		}else if (AS_status == "S"){
+			if(FtpPutFile(FTP_data, file_create(self01, "on"), temp_route)){
+				gui, main:font, cblue
+				guicontrol, main:font, text01
+				guicontrol, main:, text01, 데이터 업로드 성공
+			}else{
+				errorMsg("답안 파일 업로드 실패")
+				return
+			}
+		}
+	}else{
+		errorMsg("서버 접속 오류")
+		return
+	}
+	INetClose()
+	guicontrol, main:, auto02, %blank%
+	sleep, 350
+	Answer_download()
+	return
+}
+
+Answer01(){
+	gui, main:submit, nohide
+	ifnotinstring, result_Answer, #Answer%now_page%#
+		result_Answer = %result_Answer%#Answer%now_page%#@enm@@enm@`n
+	stringreplace, result_Answer, result_Answer, #Answer%now_page%#@enm@, /enm/
+	stringreplace, result_Answer, result_Answer, `n, @enm_enter@, All
+	regexmatch(result_Answer, "/enm/(.*?)@enm@", temp_filter)
+	stringreplace, result_Answer, result_Answer, %temp_filter%, #Answer%now_page%#@enm@%self01%@enm@
+	stringreplace, result_Answer, result_Answer, @enm_enter@, `n, All
+	return
+}
+
+Browse:
+	Browse()
+return
+
+;#Online Area
+online:
+	online()
+return
+
+active01:
+	active01()
+return
+
+active02:
+	active02()
+return
+
+active03:
+	active03()
+return
+
+self_edit:
+	self_edit()
+return
+
+auto_edit:
+	auto_edit()
+return
+
+Member_left:
+	Member_left()
+return
+
+Member_right:
+	Member_right()
+return
+
+Submit:
+	Submit()
+return
+
+Answer01:
+	Answer01()
+	Submit_check()
+return
+
+Answer02:
+	Submit_check()
+return
+
+
+
+
+
+
+
+
+mainguiclose:
+exitapp
