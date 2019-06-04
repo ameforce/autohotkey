@@ -21,7 +21,7 @@ filedelete, %a_scriptdir%\update_system.exe
 ;##를 먼저 exmatch후 /enm/로 replace 후 /enm/@@를 exmatch후 추출한 뒤 replace로 제거 그리고 덮어씌움.
 
 Main(ID_value){
-	version := "0.2.0"
+	version := "0.2.1"
 	update_check()
 	if (ID_value == "AmeForce" || ID_value == "mikenel"){
 		tooltip
