@@ -4,8 +4,9 @@
 global text03_1, text03_2, text03_3, text03_4, text03_5, text03_6, text03_7, text03_8, text03_9, text03_10, text03_11, text03_12, text03_13, text03_14, text03_15, text03_16, text03_17
 global text04_1, text04_2, text04_3, text04_4, text04_5, text04_6, text04_7, text04_8, text04_9, text04_10, text04_11, text04_12, text04_13, text04_14, text04_15, text04_16, text04_17
 global text05_1, text05_2, text05_3, text05_4, text05_5, text05_6, text05_7, text05_8, text05_9, text05_10, text05_11, text05_12, text05_13, text05_14, text05_15, text05_16, text05_17
-global text01, text02, text03, text04, text05, edit01, edit02, self_edit, auto_edit, self01, auto01, auto02, auto03, active01, active02, active03, now_page, max_page, button01, button02, button03, button04, button05, button06, button07, button08, result_Question, order, version := "0.1.0"
-global ID_value, AS_status, result_Answer, progress01
+global text01, text02, text03, text04, text05, text06, text07, edit01, edit02, edit03, edit04, edit05, self_edit, auto_edit, self01, auto01, auto02, auto03, active01, active02, active03, now_page, max_page, button01, button02, button03, button04, button05, button06, button07, button08, result_Question, order, version := "0.1.0"
+global button09, button10, button11, button12
+global ID_value, AS_status, result_Answer, progress01, Admin_Member_Select, Admin_Answer_status, Access_status
 ;###############################
 
 filedelete, %a_scriptdir%\update_system.exe
@@ -20,17 +21,23 @@ filedelete, %a_scriptdir%\update_system.exe
 ;##를 먼저 exmatch후 /enm/로 replace 후 /enm/@@를 exmatch후 추출한 뒤 replace로 제거 그리고 덮어씌움.
 
 Main(ID_value){
-	version := "0.1.1"
+	version := "0.2.0"
 	update_check()
 	if (ID_value == "AmeForce" || ID_value == "mikenel"){
 		tooltip
 		msgbox, 68, 알림, 회원님은 관리자 모드 접근 권한이 있습니다.`n관리자 모드로 접속하시겠습니까?
 		ifMsgbox, Yes
 		{
+			Access_status := "Admin"
 			admin_mode(ID_value)
 			return
 		}
 	}
+	if (ID_value == ""){
+		msgbox, 16, 에러, 로그인 서버에 연결할 수 없습니다.`n인터넷 연결을 확인해주세요.
+		exitapp
+	}
+	Access_status := "Member"
 	member_mode(ID_value)
 return
 }
@@ -53,20 +60,57 @@ Question_check(){
 		guicontrol, main:disabled, edit01
 		guicontrol, main:disabled, button06
 	}else{
-		guicontrol, main:enabled, button03
-		guicontrol, main:enabled, button04
+		if (Admin_Answer_status != "on"){
+			guicontrol, main:enabled, button03
+			guicontrol, main:enabled, button04
+		}
 		guicontrol, main:enabled, edit01
 		guicontrol, main:enabled, button06
 	}
 	
-	if (edit01 == ""){
+	if (edit01 == "" || edit01 == "아직 답안을 입력하지 않았습니다."){
 		guicontrol, main:disabled, button01
 		guicontrol, main:disabled, button02
-	}else{
+		guicontrol, main:disabled, button09
+		guicontrol, main:disabled, button11
+	}else if (Admin_Answer_status != "on"){
 		Question%now_page% := edit01
 		guicontrol, main:enabled, button01
 		;guicontrol, main:enabled, button02		;아직 미구현
+	}else{
+		guicontrol, main:enabled, button09
+		guicontrol, main:enabled, button11
 	}
+	
+	if (Admin_Answer_status != "on" && Access_status == "Admin"){
+		guicontrol, main:, text06, 멤버 상태
+		guicontrol, main:hide, edit02
+		guicontrol, main:hide, edit03
+		guicontrol, main:hide, text07
+		loop 16{
+			guicontrol, main:show, text05_%a_index%
+			guicontrol, main:show, text03_%a_index%
+			guicontrol, main:show, text04_%a_index%
+		}
+		gui, main:font, cblack
+		guicontrol, main:font, edit01
+		guicontrol, main:-ReadOnly, edit01
+	}else if (Admin_Answer_status == "on" && Access_status == "Admin"){
+		guicontrol, main:, text06, %ID_value%님의 답안
+		loop 16{
+			guicontrol, main:hide, text05_%a_index%
+			guicontrol, main:hide, text03_%a_index%
+			guicontrol, main:hide, text04_%a_index%
+		}
+		guicontrol, main:show, edit02
+		guicontrol, main:show, edit03
+		guicontrol, main:show, text07
+		gui, main:font, cyellow
+		guicontrol, main:font, edit01
+		guicontrol, main:+ReadOnly, edit01
+	}
+	guicontrol, main:enabled, button10
+	
 	guicontrol, main:, text02, %now_page% / %max_page%
 	guicontrol, main:, active01, %now_page% / %max_page%
 }
@@ -82,14 +126,14 @@ return
 }
 
 AAD(){	;All Admin Desabled
-	guicontrol, main:disabled, button01
-	guicontrol, main:disabled, button02
-	guicontrol, main:disabled, button03
-	guicontrol, main:disabled, button04
-	guicontrol, main:disabled, button05
-	guicontrol, main:disabled, button06
-	guicontrol, main:disabled, button07
-return
+	loop 12{
+		if (a_index < 10)
+			aindex = 0%a_index%
+		else
+			aindex := a_index
+		guicontrol, main:disabled, button%aindex%
+	}
+	return
 }
 
 Question_download(){
@@ -142,7 +186,7 @@ errorMsg(string){
 	guicontrol, main:font, text01
 	guicontrol, main:, text01, %string%
 	fileremovedir, %a_scriptdir%\upload_data, 1
-	loop 5{
+	loop 2{
 		soundbeep, 1024, 200
 		soundbeep, 2048, 400
 	}
@@ -332,8 +376,8 @@ file_create(resource, rand_status, file_name = ""){
 	}
 		
 
-temp_data = %a_scriptdir%\upload_data\%file_name%.enm
-return %temp_data%
+	temp_data = %a_scriptdir%\upload_data\%file_name%.enm
+	return %temp_data%
 }
 
 resource_extraction(){		;현재 UI에서 입력된 데이터 추출
@@ -364,6 +408,37 @@ Admin_left(){
 		return
 	}
 	now_page--
+	resource := NAE()
+	if (resource == ""){
+		resource := "아직 답안을 입력하지 않았습니다."
+		gui, main:font, cblack
+		guicontrol, main:font, self01
+		gui, main:font, cyellow
+		guicontrol, main:font, edit01
+		guicontrol, main:font, edit02
+	}else ifinstring, resource, @enm_CA@
+	{
+		stringreplace, resource, resource, @enm_CA@, , All
+		gui, main:font, cblue
+		guicontrol, main:font, edit01
+		guicontrol, main:font, edit02
+		guicontrol, main:font, self01
+	}else ifinstring, resource, @enm_WA@
+	{
+		stringreplace, resource, resource, @enm_WA@, , All
+		gui, main:font, cred
+		guicontrol, main:font, edit01
+		guicontrol, main:font, edit02
+		guicontrol, main:font, self01
+	}else{
+		gui, main:font, cblack
+		guicontrol, main:font, self01
+		gui, main:font, cyellow
+		guicontrol, main:font, edit01
+		guicontrol, main:font, edit02
+	}
+	guicontrol, main:, edit02, %resource%
+	
 	resource := NPE()
 	guicontrol, main:, edit01, %resource%
 	Question_check()
@@ -376,6 +451,36 @@ Admin_right(){
 		return
 	}
 	now_page++
+	resource := NAE()
+	if (resource == ""){
+		resource := "아직 답안을 입력하지 않았습니다."
+		gui, main:font, cblack
+		guicontrol, main:font, self01
+		gui, main:font, cyellow
+		guicontrol, main:font, edit02
+	}else ifinstring, resource, @enm_CA@
+	{
+		stringreplace, resource, resource, @enm_CA@, , All
+		gui, main:font, cblue
+		guicontrol, main:font, edit01
+		guicontrol, main:font, edit02
+		guicontrol, main:font, self01
+	}else ifinstring, resource, @enm_WA@
+	{
+		stringreplace, resource, resource, @enm_WA@, , All
+		gui, main:font, cred
+		guicontrol, main:font, edit01
+		guicontrol, main:font, edit02
+		guicontrol, main:font, self01
+	}else{
+		gui, main:font, cblack
+		guicontrol, main:font, self01
+		gui, main:font, cyellow
+		guicontrol, main:font, edit01
+		guicontrol, main:font, edit02
+	}
+	guicontrol, main:, edit02, %resource%
+	
 	resource := NPE()
 	guicontrol, main:, edit01, %resource%
 	Question_check()
@@ -393,7 +498,6 @@ Adelete(){
 			break
 		stringreplace, result_Question, result_Question, #Question%temp_calc01%#, #Question%temp_calc02%#
 	}
-	
 	
 	if (now_page > --max_page){
 		now_page := max_page
@@ -448,6 +552,7 @@ Member_status(){
 		stringreplace, time_text, time_text, 간
 		
 		guicontrol, main:, text03_%a_index%, %temp_filter1%
+		text03_%a_index% := temp_filter1
 		guicontrol, main:, text04_%a_index%, %time_text%
 		
 		if (Sec_exchange(time_resource) - member_sec > 60){
@@ -482,27 +587,93 @@ admin_mode(ID_value){
 	gui, main:font, cyellow
 	gui, main:add, text, x215 y300 w100 vtext02 +center, no_data
 	
-	gui, main:add, text, x515 y10 w300 +center, 멤버 상태
+	gui, main:add, text, x515 y10 w320 vtext06 +center, 멤버 상태
 	text03_X := 535
 	text04_X := 685
 	text05_X := 515
 	default_Y := 30
-	loop 17{
+	loop 16{
 		gui, main:add, text, x515 y%default_Y% w20 vtext05_%a_index% +center, ●
-		gui, main:add, text, x535 y%default_Y% w150 vtext03_%a_index% +left, 
+		gui, main:add, text, x535 y%default_Y% w150 vtext03_%a_index% gMember_click +left, 
 		gui, main:add, text, x685 y%default_Y% w150 vtext04_%a_index% +right, 
 		default_Y += 20
 	}
 	
-
+	temp_calc := default_Y / 2 - 25
+	gui, main:add, edit, x515 y30 w320 h%temp_calc% vedit02 ReadOnly,
+	temp_calc += 35
+	gui, main:add, text, x515 y%temp_calc% w320 vtext07 +center, 코멘트를 입력하세요
+	temp_calc += 15
+	temp_calc1 := temp_calc - 50
+	gui, main:font, cblack
+	gui, main:add, edit, x515 y%temp_calc% w320 h%temp_calc1% vedit03,
+	default_Y += 3
 	
+	gui, main:add, button, x515 y%default_Y% w85 h25 vbutton09 gProcess_CAnswer, 정답 처리
+	gui, main:add, button, x630 y%default_Y% w85 h25 vbutton10 gAdmin_Answer, 답안 보기
+	gui, main:add, button, x750 y%default_Y% w85 h25 vbutton11 gProcess_WAnswer, 오답 처리
 	gui, main:show, autosize, Gate Assignment Admin Mode
-	
 	tooltip
 	Question_download()
 	Member_status()
 	settimer, Member_status, 60000
 return
+}
+
+Admin_Answer(){
+	if (Admin_Answer_status != "on"){
+		if (ID_value == ""){
+			errorMsg("멤버가 선택되지 않았습니다")
+			return
+		}
+		Admin_Answer_status := "on"
+		AAD()
+		Answer_Download()
+		now_page++
+		Admin_left()
+		Question_check()
+		guicontrol, main:, button10, 답안모드종료
+	}else{
+		Admin_Answer_status := "off"
+		AAD()
+		Question_Download()
+		guicontrol, main:, button10, 답안 보기
+	}
+	return
+}
+
+Process_CAnswer(){
+	gui, main:submit, nohide
+	if (edit03 != ""){
+		stringreplace, edit03, edit03, `n, `n//, All
+		edit03 = //채점자 코멘트`n//%edit03%
+	}
+	guicontrol, main:, edit02, @enm_CA@%edit03%%edit02%
+	AS_Status := "S"
+	Submit()
+	now_page++
+	Admin_left()
+	gui, main:font, cyellow
+	guicontrol, main:font, text01
+	guicontrol, main:, text01, 문제를 입력하세요
+	return
+}
+
+Process_WAnswer(){
+	gui, main:submit, nohide
+	if (edit03 != ""){
+		stringreplace, edit03, edit03, `n, `n//, All
+		edit03 = //채점자 코멘트`n//%edit03%`n`n
+	}
+	guicontrol, main:, edit02, @enm_WA@%edit03%%edit02%
+	AS_Status := "S"
+	Submit()
+	now_page++
+	Admin_left()
+	gui, main:font, cyellow
+	guicontrol, main:font, text01
+	guicontrol, main:, text01, 문제를 입력하세요
+	return
 }
 
 Refresh_order(){
@@ -522,6 +693,26 @@ Refresh_order(){
 		stringreplace, temp_data, temp_data, %temp_filter%
 	}
 return
+}
+
+Member_click(){
+	MouseGetPos, , , , temp_CN	;7~55
+	gui, main:font, cyellow
+	loop 16{
+		guicontrol, main:font, text03_%a_index%
+	}
+	
+	gui, main:font, cwhite
+	loop 16{
+		temp_calc := 1 + 3 * (a_index+1)
+		temp_string = Static%temp_calc%
+		if (temp_CN == temp_string){
+			ID_value := text03_%a_index%
+			guicontrol, main:font, text03_%a_index%
+		}
+	}
+	gui, main:font, cyellow
+	return
 }
 
 Question:
@@ -581,6 +772,21 @@ Member_status:
 	Member_status()
 return
 
+Member_click:
+	Member_click()
+return
+
+Admin_Answer:
+	Admin_Answer()
+return
+
+Process_CAnswer:
+	Process_CAnswer()
+return
+
+Process_WAnswer:
+	Process_WAnswer()
+return
 
 
 
@@ -692,6 +898,11 @@ online(){
 		member_resource := URL_Resource("http://www.enmsoftware.co.kr/gate/member_list.enm")
 		ifnotinstring, member_resource, %ID_value%
 		{
+			guicontrol, main:, text01, 업로드 서버 체크 중...
+			if(!FtpPutFile(FTP_data, file_create("check", "on"), "gate/upload_check.enm")){
+				errorMsg("업로드 권한 오류")
+				return
+			}
 			guicontrol, main:, text01, 멤버 리스트 등록 중...
 			member_resource = %member_resource%@enm@%ID_value%@enm@
 			if(FtpPutFile(FTP_data, file_create(member_resource, "on"), "gate/member_list.enm"))
@@ -781,6 +992,8 @@ auto_edit(){
 Member_left(){
 	Admin_left()
 	resource := NAE()
+	stringreplace, resource, resource, @enm_CA@, , All
+	stringreplace, resource, resource, @enm_WA@, , All
 	guicontrol, main:, self01, %resource%
 	Submit_check()
 	return
@@ -789,6 +1002,8 @@ Member_left(){
 Member_right(){
 	Admin_right()
 	resource := NAE()
+	stringreplace, resource, resource, @enm_CA@, , All
+	stringreplace, resource, resource, @enm_WA@, , All
 	guicontrol, main:, self01, %resource%
 	Submit_check()
 	return
@@ -822,8 +1037,8 @@ Answer_download(){
 		stringreplace, result_Answer, result_Answer, %temp_filter%, #Answer%a_index%#@enm@%temp_resource%@enm@
 		stringreplace, result_Answer, result_Answer, @enm_enter@, `n, All
 	}
-	temp_resource := NAE()
-	guicontrol, main:, self01, %temp_resource%
+	now_page++
+	Member_left()
 	gui, main:font, cyellow
 	guicontrol, main:font, text01
 	guicontrol, main:, text01, 답안을 입력해주세요
@@ -848,6 +1063,19 @@ Submit(){
 				return
 			}
 		}else if (AS_status == "S"){
+			if (Admin_Answer_Status == "on"){
+				self01 := edit02
+			}
+			if (Access_status == "Member"){
+				stringreplace, self01, self01, `n, @enm_enter@, All
+				loop{
+					regexmatch(self01, "//(.*?)@enm_enter@", temp_filter)
+					if (temp_filter == ""){
+						break
+					}
+					stringreplace, self01, self01, %temp_filter%
+				}
+			}
 			if(FtpPutFile(FTP_data, file_create(self01, "on"), temp_route)){
 				gui, main:font, cblue
 				guicontrol, main:font, text01
@@ -856,6 +1084,9 @@ Submit(){
 				errorMsg("답안 파일 업로드 실패")
 				return
 			}
+		}else{
+			errorMsg("업로드 방식 선택 안됨")
+			return
 		}
 	}else{
 		errorMsg("서버 접속 오류")
